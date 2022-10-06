@@ -135,7 +135,7 @@ def profile_follow(request, username):
     if request.user != get_object_or_404(User, username=username):
         Follow.objects.get_or_create(
             user=request.user,
-			author=User.objects.get(username=username)
+            author=User.objects.get(username=username)
         )
     return redirect('posts:profile', username=username)
 
