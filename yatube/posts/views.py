@@ -11,7 +11,7 @@ CACHE_CLEAR_TIME: int = 20
 
 
 def index(request):
-    post_list = Post.objects.all().order_by('-pub_date')
+    post_list = Post.objects.all()
     page_obj = page_list(post_list, request)
     context = {
         'page_obj': page_obj,
@@ -37,12 +37,9 @@ def group_posts(request, slug):
 def profile(request, username):
     author = User.objects.get(username=username)
     post_list = author.posts.all().order_by('-pub_date')
-    if request.user.is_authenticated:
-        following = Follow.objects.filter(
-            user=request.user, author=author
-        ).exists()
-    else:
-        following = False
+    following = request.user.is_authenticated and Follow.objects.filter(
+        user=request.user, author=author
+    ).exists()
     page_obj = page_list(post_list, request)
     context = {
         'page_obj': page_obj,
@@ -55,13 +52,11 @@ def profile(request, username):
 def post_detail(request, post_id):
     post = get_object_or_404(Post, id=post_id)
     title = f'Пост {post.text[:TITLE_LEN]}'
-    form = CommentForm(request.POST or None)
-    comments = post.comments.all()
+    form = CommentForm()
     context = {
         'post': post,
         'title': title,
         'form': form,
-        'comments': comments,
     }
     return render(request, 'posts/post_detail.html', context)
 
@@ -121,8 +116,7 @@ def add_comment(request, post_id):
 
 @login_required
 def follow_index(request):
-    follow = Follow.objects.filter(user=request.user).values('author')
-    posts = Post.objects.filter(author__in=follow)
+    posts = Post.objects.filter(author__following__user=request.user)
     page_obj = page_list(posts, request)
     context = {
         'page_obj': page_obj,
@@ -142,7 +136,7 @@ def profile_follow(request, username):
 
 @login_required
 def profile_unfollow(request, username):
-    Follow.objects.filter(
-        user=request.user, author=User.objects.get(username=username)
+    get_object_or_404(
+        Follow, user=request.user, author__username=username
     ).delete()
-    return redirect('posts:profile', request.user)
+    return redirect('posts:profile', username=username)
